@@ -108,6 +108,9 @@ async def test_api_error_survives_a_failed_poll(
     previous_success = last_success.state
 
     aioclient_mock.clear_requests()
+    from custom_components.grokbot_usage.const import TOKEN_EXCHANGE_URL
+
+    aioclient_mock.post(TOKEN_EXCHANGE_URL, json={"accessToken": "test-access-token"})
     aioclient_mock.post(API_URL, status=500, text="unavailable")
     await entry.runtime_data.async_refresh()
     await hass.async_block_till_done()
@@ -133,6 +136,9 @@ async def test_unauthorized_poll_starts_reauth(
     """HTTP 401 during polling starts reauthentication."""
     entry = await _setup(hass, aioclient_mock)
     aioclient_mock.clear_requests()
+    from custom_components.grokbot_usage.const import TOKEN_EXCHANGE_URL
+
+    aioclient_mock.post(TOKEN_EXCHANGE_URL, json={"accessToken": "test-access-token"})
     aioclient_mock.post(API_URL, status=401, text="unauthorized")
 
     await entry.runtime_data.async_refresh()

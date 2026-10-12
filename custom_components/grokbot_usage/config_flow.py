@@ -36,6 +36,7 @@ from .api import (
     normalize_api_key,
 )
 from .const import (
+    AUTH_DOCS_URL,
     CONF_API_KEY,
     CONF_SCAN_INTERVAL,
     DEFAULT_NAME,
@@ -82,7 +83,7 @@ class GrokBotUsageConfigFlow(ConfigFlow, domain=DOMAIN):
         """Ask for a Cursor user API key and validate it."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            api_key = normalize_api_key(user_input[CONF_API_KEY])
+            api_key = normalize_api_key(user_input.get(CONF_API_KEY, ""))
             error = await self._async_validate_key(api_key)
             if error is None:
                 await self.async_set_unique_id(unique_id_for_api_key(api_key))
@@ -97,6 +98,7 @@ class GrokBotUsageConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=_API_KEY_SCHEMA,
+            description_placeholders={"docs_url": AUTH_DOCS_URL},
             errors=errors,
         )
 
@@ -112,7 +114,7 @@ class GrokBotUsageConfigFlow(ConfigFlow, domain=DOMAIN):
         """Replace the stored API key after validating the new one."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            api_key = normalize_api_key(user_input[CONF_API_KEY])
+            api_key = normalize_api_key(user_input.get(CONF_API_KEY, ""))
             error = await self._async_validate_key(api_key)
             if error is None:
                 entry = self._get_reauth_entry()
@@ -132,13 +134,14 @@ class GrokBotUsageConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=_API_KEY_SCHEMA,
+            description_placeholders={"docs_url": AUTH_DOCS_URL},
             errors=errors,
         )
 
     async def _async_validate_key(self, api_key: str) -> str | None:
         """Return a translation key when the API key cannot be used."""
         if not api_key:
-            return "invalid_auth"
+            return "missing_api_key"
         if looks_like_session_cookie(api_key):
             return "session_cookie"
 
@@ -156,7 +159,7 @@ class GrokBotUsageConfigFlow(ConfigFlow, domain=DOMAIN):
         except GrokBotUsageError:
             return "cannot_connect"
         except Exception:
-            _LOGGER.exception("Unexpected error validating the Cursor usage API key")
+            _LOGGER.error("Unexpected error validating the Cursor usage API key")
             return "unknown"
         return None
 

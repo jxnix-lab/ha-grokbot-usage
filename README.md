@@ -6,7 +6,7 @@ The integration talks to a private, undocumented endpoint:
 
 `POST https://api2.cursor.sh/aiserver.v1.DashboardService/GetSandUsageStatus`
 
-The request body is `{}` and the credential is sent only as `Authorization: Bearer <user API key>`. Session tokens and cookies are not read or forwarded. If a pasted value looks like a session cookie, setup is rejected before any request is sent.
+The user API key is first exchanged at `POST https://api2.cursor.sh/auth/exchange_user_api_key` with an empty JSON body and a Bearer header, following Cursor's SDK authentication flow. The returned short-lived access token is then sent as a Bearer token to the usage endpoint. Tokens are kept only in memory for that poll; each poll exchanges the key again to avoid expired-token failures. Session tokens and cookies are not read or forwarded. If a pasted value looks like a session cookie, setup is rejected before any request is sent.
 
 Home Assistant 2026.1.0 or newer is required.
 
@@ -43,11 +43,13 @@ Copy `custom_components/grokbot_usage` into the `custom_components` directory of
 
 ## Setup
 
-1. Create a **user API key** in the [Cursor dashboard](https://cursor.com/dashboard).
+1. Create a **user API key** in the [Cursor dashboard](https://cursor.com/dashboard), as described in [Cursor authentication docs](https://cursor.com/docs/cli/reference/authentication). A team admin key (`admin:*`) is not a user API key and cannot be used here.
 2. In Home Assistant, go to **Settings → Devices & services → Add integration**.
 3. Choose **Grok Bot Usage** and paste the user API key.
 
-The config flow calls the usage endpoint before the entry is created.
+The config flow exchanges the key and calls the usage endpoint before the entry is created.
+
+- Missing key: enter a user API key; no request is sent.
 
 - HTTP 401: the key was rejected. Use a Cursor user API key, not a session token.
 - HTTP 403: the key authenticated but is not allowed to read usage.
