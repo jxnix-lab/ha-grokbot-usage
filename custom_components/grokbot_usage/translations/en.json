@@ -6,13 +6,13 @@
     },
     "error": {
       "cannot_connect": "Could not reach the Cursor usage endpoint.",
-      "forbidden": "Cursor denied access to usage (permission denied / HTTP 403). Use a Cursor user API key for an account with Grok Bot access, not a team admin API key. See https://cursor.com/docs/cli/reference/authentication",
-      "invalid_auth": "Cursor rejected the credential (unauthenticated / HTTP 401). The key may be invalid, revoked, or the wrong type. Use a Cursor user API key, not a team admin API key. See https://cursor.com/docs/cli/reference/authentication",
+      "forbidden": "Cursor denied access to usage (permission denied / HTTP 403). Use a Cursor user API key for an account with Grok Bot access, not a team admin API key. See {docs_url}",
+      "invalid_auth": "Cursor rejected the credential (unauthenticated / HTTP 401). The key may be invalid, revoked, or the wrong type. Use a Cursor user API key, not a team admin API key. See {docs_url}",
       "invalid_response": "Cursor returned an unexpected key-exchange or usage response. Try again later or report an API compatibility issue.",
       "rate_limited": "The usage endpoint rate limited the request. Try again shortly.",
-      "session_cookie": "Session tokens and cookies are not accepted. Enter a Cursor user API key, not a team admin API key. See https://cursor.com/docs/cli/reference/authentication",
+      "session_cookie": "Session tokens and cookies are not accepted. Enter a Cursor user API key, not a team admin API key. See {docs_url}",
       "unknown": "Unexpected error while validating the API key.",
-      "missing_api_key": "No API key was entered. Enter a Cursor user API key (not a team admin key). See https://cursor.com/docs/cli/reference/authentication"
+      "missing_api_key": "No API key was entered. Enter a Cursor user API key (not a team admin key). See {docs_url}"
     },
     "step": {
       "reauth_confirm": {
@@ -20,7 +20,7 @@
           "api_key": "Cursor API key"
         },
         "data_description": {
-          "api_key": "Create a user API key in Cursor Dashboard \u2192 API Keys. Team admin API keys and browser cookies are not supported. See https://cursor.com/docs/cli/reference/authentication"
+          "api_key": "Create a user API key in Cursor Dashboard \u2192 API Keys. Team admin API keys and browser cookies are not supported. See {docs_url}"
         },
         "description": "The stored API key was rejected. Enter a new Cursor user API key.",
         "title": "Reauthenticate Grok Bot Usage"
@@ -30,9 +30,9 @@
           "api_key": "Cursor API key"
         },
         "data_description": {
-          "api_key": "Create a user API key in Cursor Dashboard \u2192 API Keys. Team admin API keys and browser cookies are not supported. See https://cursor.com/docs/cli/reference/authentication"
+          "api_key": "Create a user API key in Cursor Dashboard \u2192 API Keys. Team admin API keys and browser cookies are not supported. See {docs_url}"
         },
-        "description": "Enter a Cursor user API key. It is exchanged for a short-lived access token before requesting weekly usage. See https://cursor.com/docs/cli/reference/authentication",
+        "description": "Enter a Cursor user API key. It is exchanged for a short-lived access token before requesting weekly usage. See {docs_url}",
         "title": "Connect Grok Bot Usage"
       }
     }

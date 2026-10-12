@@ -15,6 +15,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 from custom_components.grokbot_usage.config_flow import unique_id_for_api_key
 from custom_components.grokbot_usage.const import (
     API_URL,
+    AUTH_DOCS_URL,
     CONF_API_KEY,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
@@ -51,6 +52,7 @@ async def test_user_form_shown(hass: HomeAssistant) -> None:
 
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
+    assert result["description_placeholders"] == {"docs_url": AUTH_DOCS_URL}
 
 
 async def test_user_flow_creates_entry(
@@ -210,6 +212,7 @@ async def test_reauth_replaces_key(
         data=entry.data,
     )
     assert result["step_id"] == "reauth_confirm"
+    assert result["description_placeholders"] == {"docs_url": AUTH_DOCS_URL}
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {CONF_API_KEY: "new-key"}
     )

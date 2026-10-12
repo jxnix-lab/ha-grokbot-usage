@@ -24,6 +24,8 @@ TOKEN_EXCHANGE_URL: Final = "https://api2.cursor.sh/auth/exchange_user_api_key"
 USER_AGENT: Final = "HomeAssistant-grokbot_usage"
 REQUEST_TIMEOUT_SECONDS: Final = 30
 
+AUTH_DOCS_URL: Final = "https://cursor.com/docs/cli/reference/authentication"
+
 CONFIGURATION_URL: Final = "https://cursor.com/dashboard"
 
 ERROR_OK: Final = "ok"

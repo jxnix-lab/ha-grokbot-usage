@@ -36,6 +36,7 @@ from .api import (
     normalize_api_key,
 )
 from .const import (
+    AUTH_DOCS_URL,
     CONF_API_KEY,
     CONF_SCAN_INTERVAL,
     DEFAULT_NAME,
@@ -97,6 +98,7 @@ class GrokBotUsageConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=_API_KEY_SCHEMA,
+            description_placeholders={"docs_url": AUTH_DOCS_URL},
             errors=errors,
         )
 
@@ -132,6 +134,7 @@ class GrokBotUsageConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=_API_KEY_SCHEMA,
+            description_placeholders={"docs_url": AUTH_DOCS_URL},
             errors=errors,
         )
 
