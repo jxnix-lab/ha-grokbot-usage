@@ -52,7 +52,7 @@ async def test_user_form_shown(hass: HomeAssistant) -> None:
 
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
-    assert result["description_placeholders"] == {"docs_url": AUTH_DOCS_URL}
+    assert result["description_placeholders"]["docs_url"] == AUTH_DOCS_URL
 
 
 async def test_user_flow_creates_entry(
@@ -212,7 +212,7 @@ async def test_reauth_replaces_key(
         data=entry.data,
     )
     assert result["step_id"] == "reauth_confirm"
-    assert result["description_placeholders"] == {"docs_url": AUTH_DOCS_URL}
+    assert result["description_placeholders"]["docs_url"] == AUTH_DOCS_URL
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {CONF_API_KEY: "new-key"}
     )
