@@ -1,0 +1,80 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "This API key is already configured.",
+      "reauth_successful": "Reauthentication successful."
+    },
+    "error": {
+      "cannot_connect": "Could not reach the Cursor usage endpoint.",
+      "forbidden": "The API key is not permitted to read usage (HTTP 403).",
+      "invalid_auth": "The API key was rejected (HTTP 401). Use a Cursor user API key.",
+      "invalid_response": "The usage endpoint returned an unexpected response.",
+      "rate_limited": "The usage endpoint rate limited the request. Try again shortly.",
+      "session_cookie": "Paste a Cursor user API key. Session tokens and cookies are not accepted.",
+      "unknown": "Unexpected error while validating the API key."
+    },
+    "step": {
+      "reauth_confirm": {
+        "data": {
+          "api_key": "Cursor API key"
+        },
+        "data_description": {
+          "api_key": "Create a user API key in the Cursor dashboard. Do not paste a browser session cookie."
+        },
+        "description": "The stored API key was rejected. Enter a new Cursor user API key.",
+        "title": "Reauthenticate Grok Bot Usage"
+      },
+      "user": {
+        "data": {
+          "api_key": "Cursor API key"
+        },
+        "data_description": {
+          "api_key": "Create a user API key in the Cursor dashboard. Do not paste a browser session cookie."
+        },
+        "description": "Enter a Cursor user API key. The key is sent only as a Bearer token to the usage endpoint. Session tokens and cookies are not accepted.",
+        "title": "Connect Grok Bot Usage"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "has_available_usage": {
+        "name": "Available usage"
+      }
+    },
+    "sensor": {
+      "api_error": {
+        "name": "API error"
+      },
+      "last_successful_update": {
+        "name": "Last successful update"
+      },
+      "next_reset": {
+        "name": "Next reset"
+      },
+      "period_start": {
+        "name": "Period start"
+      },
+      "usage_percent": {
+        "name": "Weekly usage"
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_scan_interval": "Poll interval must be between 60 and 86400 seconds."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Poll interval"
+        },
+        "data_description": {
+          "scan_interval": "Seconds between usage requests. Allowed range is 60 to 86400. The default is 300 (5 minutes)."
+        },
+        "description": "How often to request weekly usage.",
+        "title": "Grok Bot Usage options"
+      }
+    }
+  }
+}

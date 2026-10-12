@@ -1,0 +1,11 @@
+{
+  "domain": "grokbot_usage",
+  "name": "Grok Bot Usage",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/jxnix-lab/ha-grokbot-usage",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/jxnix-lab/ha-grokbot-usage",
+  "version": "0.1.0"
+}
