@@ -20,7 +20,7 @@ from custom_components.grokbot_usage.api import (
     normalize_api_key,
     parse_usage_status,
 )
-from custom_components.grokbot_usage.const import API_URL
+from custom_components.grokbot_usage.const import API_URL, TOKEN_EXCHANGE_URL
 
 # Invented account-free fixture; all usage values and dates are synthetic.
 _SAMPLE = {
@@ -59,8 +59,12 @@ class _Session:
         status: int = 200,
         body: str = "{}",
         error: Exception | None = None,
+        exchange_status: int = 200,
+        exchange_body: str = '{"accessToken":"test-access-token"}',
     ) -> None:
         self.status = status
+        self.exchange_status = exchange_status
+        self.exchange_body = exchange_body
         self.body = body
         self.error = error
         self.calls: list[dict[str, Any]] = []
@@ -69,6 +73,8 @@ class _Session:
         self.calls.append({"url": url, **kwargs})
         if self.error is not None:
             raise self.error
+        if url == TOKEN_EXCHANGE_URL:
+            return _Response(self.exchange_status, self.exchange_body)
         return _Response(self.status, self.body)
 
 
@@ -88,10 +94,15 @@ async def test_success_parses_known_fields() -> None:
     assert status.has_available_usage is True
     assert status.has_non_zero_included_limit is True
     assert status.uses_pooled_enterprise_allowance is False
-    call = session.calls[0]
+    exchange = session.calls[0]
+    assert exchange["url"] == TOKEN_EXCHANGE_URL
+    assert exchange["headers"]["Authorization"] == "Bearer user-key"
+    assert exchange["json"] == {}
+    assert exchange["allow_redirects"] is False
+    call = session.calls[1]
     assert call["url"] == API_URL
     assert call["json"] == {}
-    assert call["headers"]["Authorization"] == "Bearer user-key"
+    assert call["headers"]["Authorization"] == "Bearer test-access-token"
     assert "Cookie" not in call["headers"]
     assert call["allow_redirects"] is False
 
@@ -211,3 +222,48 @@ def test_session_cookie_values_are_recognized() -> None:
 
 def _json(payload: dict[str, object]) -> str:
     return json.dumps(payload)
+
+
+@pytest.mark.parametrize(
+    ("status", "body", "error"),
+    [
+        (401, '{"message":"secret-echo"}', GrokBotUsageAuthError),
+        (403, "{}", GrokBotUsageForbiddenError),
+        (429, "{}", GrokBotUsageRateLimitError),
+        (302, "{}", GrokBotUsageError),
+        (500, "{}", GrokBotUsageError),
+        (200, "{}", GrokBotUsageResponseError),
+        (200, '{"accessToken":123}', GrokBotUsageResponseError),
+        (200, '{"accessToken":" "}', GrokBotUsageResponseError),
+        (200, "not-json", GrokBotUsageResponseError),
+        (
+            200,
+            '{"error":{"code":"unauthenticated","message":"secret-echo"}}',
+            GrokBotUsageAuthError,
+        ),
+        (200, '{"code":"permission_denied"}', GrokBotUsageForbiddenError),
+    ],
+)
+async def test_exchange_failures_do_not_request_usage(status, body, error):
+    """Bad exchanges stop before usage and never expose response bodies."""
+    session = _Session(exchange_status=status, exchange_body=body)
+    with pytest.raises(error) as caught:
+        await _client(session).async_get_usage()
+    assert len(session.calls) == 1
+    assert "secret-echo" not in str(caught.value)
+
+
+async def test_each_poll_exchanges_again():
+    """The client never reuses an expired access token on a later poll."""
+    session = _Session(body=_json(_SAMPLE))
+    client = _client(session)
+    await client.async_get_usage()
+    session.exchange_body = '{"accessToken":"replacement-token"}'
+    await client.async_get_usage()
+    assert [call["url"] for call in session.calls] == [
+        TOKEN_EXCHANGE_URL,
+        API_URL,
+        TOKEN_EXCHANGE_URL,
+        API_URL,
+    ]
+    assert session.calls[3]["headers"]["Authorization"] == "Bearer replacement-token"

@@ -72,11 +72,11 @@ async def test_user_flow_creates_entry(
     assert result["data"] == {CONF_API_KEY: _API_KEY}
     assert result["options"] == {CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL}
     assert result["result"].unique_id == unique_id_for_api_key(_API_KEY)
-    method, url, body, headers = aioclient_mock.mock_calls[0]
+    method, url, body, headers = aioclient_mock.mock_calls[1]
     assert method.lower() == "post"
     assert str(url) == API_URL
     assert body == {}
-    assert headers["Authorization"] == f"Bearer {_API_KEY}"
+    assert headers["Authorization"] == "Bearer test-access-token"
     assert "Cookie" not in headers
 
 
@@ -311,3 +311,37 @@ def test_scan_interval_clamps_invalid_stored_values() -> None:
         scan_interval_seconds(_Options({CONF_SCAN_INTERVAL: "nope"}))
         == DEFAULT_SCAN_INTERVAL
     )
+
+
+async def test_missing_key_stays_on_form(hass, aioclient_mock):
+    """Blank input has its own error and makes no network request."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "user"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_API_KEY: "   "}
+    )
+    assert result["errors"] == {"base": "missing_api_key"}
+    assert aioclient_mock.call_count == 0
+    assert hass.config_entries.async_entries(DOMAIN) == []
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [(401, "invalid_auth"), (403, "forbidden"), (429, "rate_limited")],
+)
+async def test_exchange_error_stays_on_form(hass, aioclient_mock, status, expected):
+    """Exchange auth and permission failures are distinct in the real flow."""
+    from custom_components.grokbot_usage.const import TOKEN_EXCHANGE_URL
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.post(TOKEN_EXCHANGE_URL, status=status, text="sensitive-response")
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "user"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_API_KEY: _API_KEY}
+    )
+    assert result["errors"] == {"base": expected}
+    assert aioclient_mock.call_count == 1
+    assert hass.config_entries.async_entries(DOMAIN) == []

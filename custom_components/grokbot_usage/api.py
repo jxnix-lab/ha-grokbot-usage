@@ -17,7 +17,12 @@ from typing import Any
 
 from aiohttp import ClientError, ClientSession, ClientTimeout
 
-from .const import API_URL, REQUEST_TIMEOUT_SECONDS, USER_AGENT
+from .const import (
+    API_URL,
+    REQUEST_TIMEOUT_SECONDS,
+    TOKEN_EXCHANGE_URL,
+    USER_AGENT,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -129,16 +134,30 @@ class GrokBotUsageClient:
         self._api_key = api_key
 
     async def async_get_usage(self) -> UsageStatus:
-        """Request the current weekly usage snapshot."""
+        """Exchange the user key, then request usage with the short-lived token.
+
+        Exchange on each poll so expired tokens cannot trigger reauthentication.
+        Access and refresh tokens are never persisted or logged.
+        """
+        payload = await self._async_post(TOKEN_EXCHANGE_URL, self._api_key)
+        token = payload.get("accessToken")
+        if not isinstance(token, str) or not token.strip():
+            raise GrokBotUsageResponseError(
+                "Cursor key exchange returned no access token"
+            )
+        return parse_usage_status(await self._async_post(API_URL, token))
+
+    async def _async_post(self, url: str, credential: str) -> dict[str, Any]:
+        """POST to a fixed Cursor endpoint without exposing response bodies."""
         headers = {
-            "Authorization": f"Bearer {self._api_key}",
+            "Authorization": f"Bearer {credential}",
             "Accept": "application/json",
             "User-Agent": USER_AGENT,
         }
         try:
             async with asyncio.timeout(REQUEST_TIMEOUT_SECONDS):
                 async with self._session.post(
-                    API_URL,
+                    url,
                     json={},
                     headers=headers,
                     timeout=_TIMEOUT,
@@ -146,51 +165,65 @@ class GrokBotUsageClient:
                 ) as response:
                     status = response.status
                     body = await response.text()
-        except TimeoutError as err:
+        except TimeoutError:
             raise GrokBotUsageError(
-                "Timed out contacting the Cursor usage endpoint"
-            ) from err
-        except ClientError as err:
+                "Timed out contacting the Cursor endpoint"
+            ) from None
+        except ClientError:
             raise GrokBotUsageError(
-                "Could not connect to the Cursor usage endpoint"
-            ) from err
+                "Could not connect to the Cursor endpoint"
+            ) from None
 
-        return _parse_http_response(status, body)
+        return _parse_json_response(status, body)
 
 
-def _parse_http_response(status: int, body: str) -> UsageStatus:
-    """Turn an HTTP response into a usage snapshot or a typed error."""
+def _parse_json_response(status: int, body: str) -> dict[str, Any]:
+    """Turn an HTTP response into JSON or a typed error."""
     if status == 401:
-        raise GrokBotUsageAuthError(
-            "Cursor usage endpoint rejected the API key (HTTP 401)"
-        )
+        raise GrokBotUsageAuthError("Cursor endpoint rejected the API key (HTTP 401)")
     if status == 403:
         raise GrokBotUsageForbiddenError(
-            "Cursor usage endpoint refused the API key (HTTP 403)"
+            "Cursor endpoint refused the API key (HTTP 403)"
         )
     if status == 429:
         raise GrokBotUsageRateLimitError(
-            "Cursor usage endpoint rate limited the request (HTTP 429)"
+            "Cursor endpoint rate limited the request (HTTP 429)"
         )
     if status < 200 or status >= 300:
-        raise GrokBotUsageError(f"Cursor usage endpoint returned HTTP {status}")
+        raise GrokBotUsageError(f"Cursor endpoint returned HTTP {status}")
 
     text = body.strip()
     if not text:
-        raise GrokBotUsageResponseError(
-            "Cursor usage endpoint returned an empty response"
-        )
+        raise GrokBotUsageResponseError("Cursor endpoint returned an empty response")
     try:
         payload = json.loads(text)
-    except json.JSONDecodeError as err:
+    except json.JSONDecodeError:
         raise GrokBotUsageResponseError(
-            "Cursor usage endpoint returned a response that was not JSON"
-        ) from err
+            "Cursor endpoint returned a response that was not JSON"
+        ) from None
     if not isinstance(payload, dict):
         raise GrokBotUsageResponseError(
-            "Cursor usage endpoint returned JSON that was not an object"
+            "Cursor endpoint returned JSON that was not an object"
         )
-    return parse_usage_status(payload)
+    _raise_payload_error(payload)
+    return payload
+
+
+def _raise_payload_error(payload: dict[str, Any]) -> None:
+    """Classify known API error codes without displaying upstream messages."""
+    error = payload.get("error")
+    source = error if isinstance(error, dict) else payload
+    code = source.get("code")
+    if isinstance(code, str):
+        code = code.lower()
+    if isinstance(code, str) and code in ("unauthenticated", "unauthorized"):
+        raise GrokBotUsageAuthError("Cursor rejected the credential")
+    if isinstance(code, str) and code in ("permission_denied", "forbidden"):
+        raise GrokBotUsageForbiddenError("Cursor denied access to usage")
+    if code == "resource_exhausted":
+        raise GrokBotUsageRateLimitError("Cursor rate limited the request")
+    if _looks_like_error(payload):
+        raise GrokBotUsageResponseError("Cursor returned an error payload")
 
 
 def parse_usage_status(payload: dict[str, Any]) -> UsageStatus:
@@ -200,12 +233,11 @@ def parse_usage_status(payload: dict[str, Any]) -> UsageStatus:
     single nested object that contains them is used instead. A 200 response
     that only carries an error object is rejected.
     """
+    _raise_payload_error(payload)
     data = _unwrap_payload(payload)
     if not _has_known_fields(data):
         if _looks_like_error(payload) or _looks_like_error(data):
-            raise GrokBotUsageResponseError(
-                "Cursor usage endpoint returned an error payload"
-            )
+            raise GrokBotUsageResponseError("Cursor endpoint returned an error payload")
         _LOGGER.warning(
             "Cursor usage response did not include known usage fields; keys=%s",
             sorted(str(key) for key in data),
