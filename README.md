@@ -33,7 +33,7 @@ The response shape can change. Missing fields become `unknown` instead of failin
 4. In the HACS integration list, open **Grok Bot Usage** and download it.
 5. Restart Home Assistant.
 
-HACS installs a tagged GitHub release. Grok Bot brand icons are bundled in `custom_components/grokbot_usage/brand/` and served locally by Home Assistant 2026.3 or newer.
+HACS installs a tagged GitHub release. Grok Bot brand icons are bundled in `custom_components/grokbot_usage/brand/` and served locally by Home Assistant 2026.3 or newer. The mark has a white body, black eyes, and a thin black outline for visibility on light and dark backgrounds.
 
 A later HACS default-store submission needs a public repository, a GitHub description, repository topics, and a published release. Custom-repository installation does not need those.
 
