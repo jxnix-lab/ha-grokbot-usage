@@ -1,5 +1,6 @@
 {
   "name": "Grok Bot Usage",
   "render_readme": true,
-  "homeassistant": "2026.1.0"
+  "homeassistant": "2026.1.0",
+  "hide_default_branch": true
 }
