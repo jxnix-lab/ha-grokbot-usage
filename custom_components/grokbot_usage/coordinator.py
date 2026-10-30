@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from time import monotonic
 from typing import override
 
 from homeassistant.config_entries import ConfigEntry
@@ -36,6 +37,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 _STATE_MAX_LENGTH = 255
+_AUTH_FAILURE_THRESHOLD = 3
+_AUTH_FAILURE_MIN_SECONDS = 15 * 60
 
 
 def scan_interval_seconds(entry: ConfigEntry) -> int:
@@ -66,6 +69,8 @@ class GrokBotUsageCoordinator(DataUpdateCoordinator[UsageStatus]):
             name=DOMAIN,
             update_interval=timedelta(seconds=update_interval_seconds),
         )
+        self._auth_failure_count = 0
+        self._auth_failure_started: float | None = None
         self.client = client
         self.last_error: str | None = None
         self.last_error_code: str | None = None
@@ -76,12 +81,23 @@ class GrokBotUsageCoordinator(DataUpdateCoordinator[UsageStatus]):
         """Fetch the latest usage snapshot."""
         try:
             status = await self.client.async_get_usage()
-        except GrokBotUsageAuthError as err:
-            self._record_error(ERROR_UNAUTHORIZED, err)
-            raise ConfigEntryAuthFailed(self.last_error) from err
-        except GrokBotUsageForbiddenError as err:
-            self._record_error(ERROR_FORBIDDEN, err)
-            raise ConfigEntryAuthFailed(self.last_error) from err
+        except (GrokBotUsageAuthError, GrokBotUsageForbiddenError) as err:
+            code = (
+                ERROR_UNAUTHORIZED
+                if isinstance(err, GrokBotUsageAuthError)
+                else ERROR_FORBIDDEN
+            )
+            self._record_error(code, err)
+            now = monotonic()
+            if self._auth_failure_started is None:
+                self._auth_failure_started = now
+            self._auth_failure_count += 1
+            if (
+                self._auth_failure_count >= _AUTH_FAILURE_THRESHOLD
+                and now - self._auth_failure_started >= _AUTH_FAILURE_MIN_SECONDS
+            ):
+                raise ConfigEntryAuthFailed(self.last_error) from err
+            raise UpdateFailed(self.last_error) from err
         except GrokBotUsageRateLimitError as err:
             self._record_error(ERROR_RATE_LIMITED, err)
             raise UpdateFailed(self.last_error) from err
@@ -92,12 +108,22 @@ class GrokBotUsageCoordinator(DataUpdateCoordinator[UsageStatus]):
             self._record_error(ERROR_CANNOT_CONNECT, err)
             raise UpdateFailed(self.last_error) from err
 
+        self._reset_auth_failures()
         self.last_error = None
         self.last_error_code = None
         self.last_successful_update = dt_util.utcnow()
         return status
 
+    def _reset_auth_failures(self) -> None:
+        """Require a fresh, uninterrupted auth streak after any other result."""
+        self._auth_failure_count = 0
+        self._auth_failure_started = None
+
     def _record_error(self, code: str, err: Exception) -> None:
         """Remember a short diagnostic message without including the API key."""
+        if code not in (ERROR_UNAUTHORIZED, ERROR_FORBIDDEN):
+            # A 5xx/transport failure breaks the streak. The next auth error
+            # starts a new 15-minute observation period, beyond the outage.
+            self._reset_auth_failures()
         self.last_error_code = code
         self.last_error = str(err)[:_STATE_MAX_LENGTH]

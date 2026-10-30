@@ -65,5 +65,5 @@ def test_integration_manifest_matches_hacs_schema() -> None:
     assert payload["domain"] == "grokbot_usage"
     assert payload["config_flow"] is True
     assert payload["iot_class"] == "cloud_polling"
-    assert payload["version"] == "0.1.3"
+    assert payload["version"] == "0.1.4"
     assert all(owner.startswith("@") for owner in payload["codeowners"])

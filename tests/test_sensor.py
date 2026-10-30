@@ -130,10 +130,10 @@ async def test_api_error_survives_a_failed_poll(
     assert usage.state == "unavailable"
 
 
-async def test_unauthorized_poll_starts_reauth(
+async def test_single_unauthorized_poll_keeps_retrying(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
-    """HTTP 401 during polling starts reauthentication."""
+    """One HTTP 401 exposes diagnostics without starting reauthentication."""
     entry = await _setup(hass, aioclient_mock)
     aioclient_mock.clear_requests()
     from custom_components.grokbot_usage.const import TOKEN_EXCHANGE_URL
@@ -148,7 +148,7 @@ async def test_unauthorized_poll_starts_reauth(
     assert api_error is not None
     assert api_error.attributes["code"] == ERROR_UNAUTHORIZED
     flows = hass.config_entries.flow.async_progress()
-    assert any(flow["context"]["source"] == "reauth" for flow in flows)
+    assert not any(flow["context"]["source"] == "reauth" for flow in flows)
 
 
 async def test_diagnostics_redact_the_api_key(

@@ -178,6 +178,8 @@ def test_error_object_is_rejected() -> None:
         (403, GrokBotUsageForbiddenError),
         (429, GrokBotUsageRateLimitError),
         (500, GrokBotUsageError),
+        (503, GrokBotUsageError),
+        (599, GrokBotUsageError),
         (302, GrokBotUsageError),
     ],
 )
@@ -267,3 +269,12 @@ async def test_each_poll_exchanges_again():
         API_URL,
     ]
     assert session.calls[3]["headers"]["Authorization"] == "Bearer replacement-token"
+
+
+async def test_timeout_retries_without_exposing_credentials() -> None:
+    """Timeouts are transport failures, never authentication errors."""
+    session = _Session(error=TimeoutError("synthetic-credential"))
+    with pytest.raises(GrokBotUsageError, match="Timed out") as caught:
+        await _client(session, "synthetic-credential").async_get_usage()
+    assert type(caught.value) is GrokBotUsageError
+    assert "synthetic-credential" not in str(caught.value)

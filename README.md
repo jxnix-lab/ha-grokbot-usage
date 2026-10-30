@@ -21,7 +21,7 @@ Home Assistant 2026.1.0 or newer is required.
 | API error | Diagnostic sensor | `ok` after a successful poll, otherwise a short error message. Attribute `code` is a stable token such as `unauthorized` or `forbidden`. |
 | Last successful update | Diagnostic sensor, timestamp | Stays available after a later poll fails. |
 
-The response shape can change. Missing fields become `unknown` instead of failing the whole update. HTTP 401 and HTTP 403 mark the config entry as needing reauthentication.
+The response shape can change. Missing fields become `unknown` instead of failing the whole update. During background polling, HTTP 401/403 (and equivalent API auth error codes) request reauthentication only after at least three consecutive auth failures spanning at least 15 minutes. A success resets the streak. Any non-auth failure, including HTTP 5xx, timeouts, connection errors, rate limits, or malformed responses, also resets it and retries without reauthentication. Thus an auth error following an outage starts a fresh 15-minute observation period; a fast poll interval cannot trigger early reauthentication. This state stays in memory and resets when the integration reloads. Initial setup and owner-initiated reauthentication still validate the entered key immediately.
 
 ## Installation
 
